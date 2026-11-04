@@ -12,6 +12,8 @@ from qgis import processing
 
 
 from .ai_engine import ask_ai
+from .clip_tool import create_clip
+from .verified_workflows import get_workflow, format_workflow
 
 
 class AIWorker(QObject):
@@ -71,7 +73,7 @@ class QGISAIPlugin:
         widget = QWidget()
         layout = QVBoxLayout(widget)
 
-        layout.addWidget(QLabel("OwensGeoMind | v0.2 - Local AI"))
+        layout.addWidget(QLabel("OwensGeoMind | v0.3 - Local AI"))
 
         self.chat = QTextEdit()
         self.chat.setReadOnly(True)
@@ -99,6 +101,10 @@ class QGISAIPlugin:
         buffer_button.clicked.connect(self.create_buffer)
         layout.addWidget(buffer_button)
 
+        clip_button = QPushButton("Create Clip")
+        clip_button.clicked.connect(self.create_clip)
+        layout.addWidget(clip_button)
+
         self.dock.setWidget(widget)
         self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dock)
 
@@ -116,6 +122,31 @@ class QGISAIPlugin:
             return
 
         self.say("YOU: " + question)
+
+        words = set(
+            question.lower()
+            .replace("?", " ")
+            .replace(",", " ")
+            .replace(".", " ")
+            .split()
+        )
+
+        clip_terms = {"clip", "clipping", "clipped"}
+        instruction_terms = {
+            "how", "steps", "use", "using", "perform",
+            "run", "explain", "workflow"
+        }
+
+        if words & clip_terms and words & instruction_terms:
+            workflow = get_workflow("Clip")
+            if workflow:
+                self.question.clear()
+                self.say(format_workflow(workflow))
+                self.say(
+                    "Documentation: QGIS 3.40 User Guide. "
+                    "Algorithm native:clip was tested in QGIS 3.40.5."
+                )
+                return
         self.question.clear()
         self.say("OwensGeoMind: Thinking locally...")
 
@@ -249,3 +280,6 @@ class QGISAIPlugin:
                 "Processing Error",
                 str(error)
             )
+
+    def create_clip(self):
+        create_clip(self.iface, self.say)
