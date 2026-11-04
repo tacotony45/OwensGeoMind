@@ -1,4 +1,4 @@
-from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtCore import Qt, QObject, QThread, pyqtSignal, pyqtSlot
 from qgis.PyQt.QtWidgets import (
     QAction, QDockWidget, QWidget, QVBoxLayout,
     QLabel, QTextEdit, QLineEdit, QPushButton,
@@ -10,11 +10,39 @@ from qgis.core import (
 from qgis import processing
 
 
+
+from .ai_engine import ask_ai
+
+
+class AIWorker(QObject):
+    finished = pyqtSignal(str)
+
+    def __init__(self, question, context):
+        super().__init__()
+        self.question = question
+        self.context = context
+
+    @pyqtSlot()
+    def run(self):
+        try:
+            response = ask_ai(
+                self.question,
+                learning_level="Beginner",
+                project_context=self.context
+            )
+        except Exception as error:
+            response = "AI request failed: " + str(error)
+
+        self.finished.emit(response)
+
+
 class QGISAIPlugin:
     def __init__(self, iface):
         self.iface = iface
         self.action = None
         self.dock = None
+        self.ai_thread = None
+        self.ai_worker = None
 
     def initGui(self):
         self.action = QAction("OwensGeoMind", self.iface.mainWindow())
@@ -43,14 +71,14 @@ class QGISAIPlugin:
         widget = QWidget()
         layout = QVBoxLayout(widget)
 
-        layout.addWidget(QLabel("OwensGeoMind | v0.1"))
+        layout.addWidget(QLabel("OwensGeoMind | v0.2 - Local AI"))
 
         self.chat = QTextEdit()
         self.chat.setReadOnly(True)
         self.chat.setPlainText(
             "Welcome to OwensGeoMind!\n\n"
             "Ask about buffers, clipping, CRS, or layers.\n"
-            "This first version uses built-in guidance, not an AI model."
+            "Powered by local Llama 3.2 through Ollama.\n""AI explanations may contain mistakes; verify GIS workflows."
         )
         layout.addWidget(self.chat)
 
@@ -79,47 +107,53 @@ class QGISAIPlugin:
 
     def answer(self):
         question = self.question.text().strip()
+
         if not question:
+            return
+
+        if self.ai_thread is not None:
+            self.say("OwensGeoMind is still processing your last question.")
             return
 
         self.say("YOU: " + question)
         self.question.clear()
+        self.say("OwensGeoMind: Thinking locally...")
 
-        q = question.lower()
+        # Collect project details on the QGIS main thread.
+        project = QgsProject.instance()
+        context_lines = [
+            "Project CRS: " + project.crs().authid()
+        ]
 
-        if "buffer" in q:
-            response = (
-                "A buffer creates an area around geographic features.\n"
-                "Example: 500 meters around a road.\n"
-                "Use the Create Buffer button to run this operation.\n"
-                "For accurate distances, use a suitable projected CRS."
-            )
-        elif "clip" in q:
-            response = (
-                "Clip extracts features within a polygon boundary.\n"
-                "Open Processing Toolbox and search for Clip.\n"
-                "Choose an input layer and polygon overlay layer."
-            )
-        elif "crs" in q or "projection" in q:
-            response = (
-                "A Coordinate Reference System defines how spatial "
-                "coordinates relate to locations on Earth.\n"
-                "Check layer properties under Source to view its CRS."
-            )
-        elif "layer" in q:
-            response = (
-                "Layers contain spatial data such as points, lines, "
-                "polygons, or rasters.\n"
-                "Use Inspect Project Layers to examine your project."
-            )
-        else:
-            response = (
-                "I don't have a verified answer yet.\n"
-                "The upcoming AI version will search official QGIS "
-                "documentation and explain more complex workflows."
+        for layer in list(project.mapLayers().values())[:20]:
+            context_lines.append(
+                "Layer: " + layer.name()
+                + " | CRS: " + layer.crs().authid()
+                + " | Type: " + str(layer.type())
             )
 
-        self.say("ASSISTANT: " + response)
+        context = "\\n".join(context_lines)
+
+        self.ai_thread = QThread()
+        self.ai_worker = AIWorker(question, context)
+        self.ai_worker.moveToThread(self.ai_thread)
+
+        self.ai_thread.started.connect(self.ai_worker.run)
+        self.ai_worker.finished.connect(self.on_ai_finished)
+        self.ai_worker.finished.connect(self.ai_thread.quit)
+        self.ai_worker.finished.connect(self.ai_worker.deleteLater)
+        self.ai_thread.finished.connect(self.on_ai_thread_finished)
+        self.ai_thread.finished.connect(self.ai_thread.deleteLater)
+
+        self.ai_thread.start()
+
+    def on_ai_finished(self, response):
+        if self.dock is not None:
+            self.say("OWENSGEOMIND: " + response)
+
+    def on_ai_thread_finished(self):
+        self.ai_thread = None
+        self.ai_worker = None
 
     def inspect_layers(self):
         layers = list(QgsProject.instance().mapLayers().values())

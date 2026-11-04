@@ -7,3 +7,4 @@ __pycache__/
 
 backup_before_owensgeomind/
 backup_before_spatialmind/
+qgis_ai_assistant/*.backup
