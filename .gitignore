@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.venv/
+*.zip
+
+backup_before_owensgeomind/
+backup_before_spatialmind/
