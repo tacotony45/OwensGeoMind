@@ -1,9 +1,0 @@
-[general]
-name=OwensGeoMind
-description=Free GIS learning and processing assistant
-about=Learn GIS, inspect project layers, and perform approved GIS tasks.
-version=0.1.0
-qgisMinimumVersion=3.28
-author=QGIS AI Assistant Contributors
-category=Plugins
-experimental=True

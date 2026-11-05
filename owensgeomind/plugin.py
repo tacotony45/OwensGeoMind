@@ -14,6 +14,12 @@ from qgis import processing
 from .ai_engine import ask_ai
 from .clip_tool import create_clip
 from .verified_workflows import get_workflow, format_workflow
+from .chat_formatter import format_chat_message
+
+from .fieldproof.scanner import scan_layer
+from .fieldproof.report import export_issues_csv
+
+from .ai_setup_wizard import AISetupWizard
 
 
 class AIWorker(QObject):
@@ -105,11 +111,109 @@ class QGISAIPlugin:
         clip_button.clicked.connect(self.create_clip)
         layout.addWidget(clip_button)
 
+        fieldproof_button = QPushButton("Run FieldProof QA/QC")
+        fieldproof_button.clicked.connect(self.run_fieldproof)
+        layout.addWidget(fieldproof_button)
+
+        ai_setup_button = QPushButton("AI Setup - Ollama")
+        ai_setup_button.clicked.connect(self.open_ai_setup)
+        layout.addWidget(ai_setup_button)
+
         self.dock.setWidget(widget)
         self.iface.addDockWidget(Qt.RightDockWidgetArea, self.dock)
 
+    def open_ai_setup(self):
+        """Open the OwensGeoMind AI Setup Wizard."""
+        wizard = AISetupWizard(self.iface.mainWindow())
+        wizard.exec()
+
+
+    def run_fieldproof(self):
+        """Run read-only QA/QC on the selected GIS layer."""
+
+        layer = self.iface.activeLayer()
+
+        if not isinstance(layer, QgsVectorLayer):
+            QMessageBox.warning(
+                self.iface.mainWindow(),
+                "FieldProof Lite",
+                "Please select a vector layer first."
+            )
+            return
+
+        try:
+            issues = scan_layer(layer)
+        except Exception as error:
+            QMessageBox.critical(
+                self.iface.mainWindow(),
+                "FieldProof Scan Error",
+                str(error)
+            )
+            return
+
+        self.say(
+            f"FieldProof scanned '{layer.name()}' "
+            f"and detected {len(issues)} issue(s)."
+        )
+
+        for issue in issues[:50]:
+            self.say(
+                f"Feature {issue['feature_id']}: "
+                f"{issue['rule']} - {issue['message']}"
+            )
+
+        if len(issues) > 50:
+            self.say(
+                f"{len(issues) - 50} more issues "
+                "are available in the report."
+            )
+
+        if not issues:
+            return
+
+        choice = QMessageBox.question(
+            self.iface.mainWindow(),
+            "FieldProof Lite",
+            "Would you like to export the QA/QC report?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes
+        )
+
+        if choice != QMessageBox.Yes:
+            return
+
+        from qgis.PyQt.QtWidgets import QFileDialog
+
+        output_path, _ = QFileDialog.getSaveFileName(
+            self.iface.mainWindow(),
+            "Save FieldProof QA/QC Report",
+            "",
+            "CSV Files (*.csv)"
+        )
+
+        if not output_path:
+            return
+
+        if not output_path.lower().endswith(".csv"):
+            output_path += ".csv"
+
+        try:
+            saved_path = export_issues_csv(
+                issues, output_path
+            )
+            self.say(
+                f"FieldProof report saved: {saved_path}"
+            )
+        except Exception as error:
+            QMessageBox.critical(
+                self.iface.mainWindow(),
+                "FieldProof Export Error",
+                str(error)
+            )
+
+
     def say(self, message):
-        self.chat.append("\n" + message)
+        self.chat.append(format_chat_message(str(message)))
 
     def answer(self):
         question = self.question.text().strip()
@@ -130,6 +234,19 @@ class QGISAIPlugin:
             .replace(".", " ")
             .split()
         )
+
+        buffer_terms = {"buffer", "buffering", "buffers", "buffered"}
+        instruction_terms_for_buffer = {
+            "how", "steps", "use", "using", "perform",
+            "run", "explain", "workflow", "create", "make"
+        }
+
+        if words & buffer_terms and words & instruction_terms_for_buffer:
+            workflow = get_workflow("Buffer")
+            if workflow:
+                self.question.clear()
+                self.say(format_workflow(workflow))
+                return
 
         clip_terms = {"clip", "clipping", "clipped"}
         instruction_terms = {

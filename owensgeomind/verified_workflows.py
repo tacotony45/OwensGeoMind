@@ -31,6 +31,31 @@ WORKFLOWS = {
             "running a separate saving algorithm.",
         ],
     },
+
+    "Buffer": {
+        "name": "Buffer (distance around features)",
+        "algorithm_id": "native:buffer",
+        "documentation_pages": [],
+        "steps": [
+            "Select the vector layer you want to buffer.",
+            "Check the input layer CRS and its coordinate units.",
+            "For meter-based planar buffers, choose a suitable local projected CRS with meter units.",
+            "If needed, reproject the layer using Export > Save Features As and select the appropriate output CRS.",
+            "Use the newly reprojected layer as the input.",
+            "Open the Processing Toolbox and search for Buffer.",
+            "Enter the buffer distance in the layer's coordinate units.",
+            "Choose an output destination and click Run.",
+            "Inspect the resulting geometry and verify the distance.",
+        ],
+        "notes": [
+            "EPSG:4326 uses degrees, not meters.",
+            "Changing the project CRS alone does not reproject the input layer.",
+            "EPSG:3857 should not be assumed accurate for local distance measurements.",
+            "Choose a projected CRS appropriate to the location and purpose.",
+            "OwensGeoMind's Create Buffer tool requires a projected input layer with meter units.",
+        ],
+    },
+
 }
 
 

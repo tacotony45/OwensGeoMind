@@ -1,0 +1,18 @@
+
+[general]
+name=OwensGeoMind
+description=Local AI-powered GIS assistant with FieldProof QA/QC tools
+about=OwensGeoMind helps users learn GIS, inspect spatial data, perform geoprocessing tasks, and identify data quality issues.
+version=0.3.0-beta
+qgisMinimumVersion=3.28
+author=Antonio Owens
+category=Plugins
+experimental=True
+
+# Publication information
+homepage=https://github.com/tacotony45/OwensGeoMind
+repository=https://github.com/tacotony45/OwensGeoMind
+tracker=https://github.com/tacotony45/OwensGeoMind/issues
+email= nextapp.dev03@gmail.com
+
+

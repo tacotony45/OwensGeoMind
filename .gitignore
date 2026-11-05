@@ -8,3 +8,16 @@ __pycache__/
 backup_before_owensgeomind/
 backup_before_spatialmind/
 qgis_ai_assistant/*.backup
+knowledge/qgis_3_40/*.pdf
+knowledge/qgis_3_40/*.jsonl
+knowledge/qgis_3_40/*.sqlite
+
+# OwensGeoMind development files
+.vscode/
+releases/
+scripts/*.backup
+scripts/*.before-*
+owensgeomind/*.backup
+owensgeomind/*.before_*
+owensgeomind/__pycache__/
+owensgeomind/fieldproof/__pycache__/
