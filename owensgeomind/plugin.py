@@ -1,4 +1,6 @@
 from qgis.PyQt.QtCore import Qt, QObject, QThread, pyqtSignal, pyqtSlot
+from qgis.PyQt.QtGui import QIcon
+import os
 from qgis.PyQt.QtWidgets import (
     QAction, QDockWidget, QWidget, QVBoxLayout,
     QLabel, QTextEdit, QLineEdit, QPushButton,
@@ -53,7 +55,15 @@ class QGISAIPlugin:
         self.ai_worker = None
 
     def initGui(self):
-        self.action = QAction("OwensGeoMind", self.iface.mainWindow())
+        icon_path = os.path.join(
+            os.path.dirname(__file__),
+            "icon.png"
+        )
+        self.action = QAction(
+            QIcon(icon_path),
+            "OwensGeoMind",
+            self.iface.mainWindow()
+        )
         self.action.triggered.connect(self.show_panel)
         self.iface.addPluginToMenu("OwensGeoMind", self.action)
         self.iface.addToolBarIcon(self.action)

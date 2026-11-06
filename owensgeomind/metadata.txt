@@ -1,6 +1,7 @@
 
 [general]
 name=OwensGeoMind
+icon=icon.png
 description=Local AI-powered GIS assistant with FieldProof QA/QC tools
 about=OwensGeoMind helps users learn GIS, inspect spatial data, perform geoprocessing tasks, and identify data quality issues.
 version=0.3.0-beta
